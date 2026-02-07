@@ -42,7 +42,7 @@ func registerPrometheus() {
 			return nil
 		},
 		InitWithBuilder: func(builder *builder.Builder) *builder.Builder {
-			return builder
+			return builder.Owns(&monitoringv1.Prometheus{})
 		},
 		InitWithFakeClientBuilder: func(fakeClientBuilder *fake.ClientBuilder) {
 			fakeClientBuilder.WithIndex(&monitoringv1.Prometheus{}, CollectableOwnerKey, prometheusIndexer)
@@ -65,7 +65,7 @@ func registerPrometheus() {
 			return nil
 		},
 		InitWithBuilder: func(builder *builder.Builder) *builder.Builder {
-			return builder
+			return builder.Owns(&monitoringv1.ServiceMonitor{})
 		},
 		InitWithFakeClientBuilder: func(fakeClientBuilder *fake.ClientBuilder) {
 			fakeClientBuilder.WithIndex(&monitoringv1.ServiceMonitor{}, CollectableOwnerKey, serviceMonitorIndexer)
