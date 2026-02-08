@@ -109,7 +109,10 @@ func ParsePreemptibility(value string) (Preemptibility, error) {
 
 type SubGroup struct {
 	// Name uniquely identifies the SubGroup within the PodGroup.
+	// Must be lowercase and may contain lowercase letters, numbers, and hyphens.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 
 	// MinMember defines the minimal number of members to run this SubGroup;
@@ -117,8 +120,10 @@ type SubGroup struct {
 	// +kubebuilder:validation:Minimum=1
 	MinMember int32 `json:"minMember,omitempty"`
 
-	// Parent is an optional attribute that specifies the name of the parent SubGroup
+	// Parent is an optional attribute that specifies the name of the parent SubGroup.
+	// Must reference an existing SubGroup name (lowercase).
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Parent *string `json:"parent,omitempty"`
 
 	// TopologyConstraint defines the topology constraints for this SubGroup

@@ -5,10 +5,49 @@ package v2alpha2
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"k8s.io/utils/ptr"
 )
+
+func TestValidateSubGroupName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "valid lowercase", input: "workers", wantErr: false},
+		{name: "valid with hyphen", input: "decode-workers", wantErr: false},
+		{name: "valid with numbers", input: "worker1", wantErr: false},
+		{name: "valid single char", input: "a", wantErr: false},
+		{name: "valid number only", input: "1", wantErr: false},
+		{name: "valid starts with number", input: "1worker", wantErr: false},
+		{name: "valid ends with number", input: "worker1", wantErr: false},
+		{name: "valid complex", input: "decode-workers-v2", wantErr: false},
+		{name: "invalid uppercase", input: "Workers", wantErr: true},
+		{name: "invalid mixed case", input: "decodeWorkers", wantErr: true},
+		{name: "invalid all uppercase", input: "WORKERS", wantErr: true},
+		{name: "invalid underscore", input: "decode_workers", wantErr: true},
+		{name: "invalid starts with hyphen", input: "-workers", wantErr: true},
+		{name: "invalid ends with hyphen", input: "workers-", wantErr: true},
+		{name: "invalid empty", input: "", wantErr: true},
+		{name: "invalid too long", input: strings.Repeat("a", 64), wantErr: true},
+		{name: "valid max length", input: strings.Repeat("a", 63), wantErr: false},
+		{name: "invalid space", input: "decode workers", wantErr: true},
+		{name: "invalid dot", input: "decode.workers", wantErr: true},
+		{name: "invalid special char", input: "decode@workers", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSubGroupName(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateSubGroupName(%q) error = %v, wantErr %v",
+					tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}
 
 func TestValidateSubGroups(t *testing.T) {
 	tests := []struct {
@@ -32,6 +71,14 @@ func TestValidateSubGroups(t *testing.T) {
 				{Name: "b", MinMember: 1},
 				{Name: "c", Parent: ptr.To("a"), MinMember: 1},
 				{Name: "d", Parent: ptr.To("b"), MinMember: 1},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Valid lowercase names with hyphens",
+			subGroups: []SubGroup{
+				{Name: "decode-workers", MinMember: 4},
+				{Name: "prefill", MinMember: 2, Parent: ptr.To("decode-workers")},
 			},
 			wantErr: nil,
 		},
@@ -92,35 +139,57 @@ func TestValidateSubGroups(t *testing.T) {
 			},
 			wantErr: errors.New("cycle detected in subgroups"),
 		},
+		// New lowercase validation tests
 		{
-			name: "Non-lowercase subgroup name",
+			name: "Invalid uppercase name",
 			subGroups: []SubGroup{
-				{Name: "A", MinMember: 1},
+				{Name: "Workers", MinMember: 4},
 			},
-			wantErr: errors.New("subgroup name \"A\" must be lowercase"),
+			wantErr: errors.New("invalid subgroup name \"Workers\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
 		},
 		{
-			name: "Non-lowercase parent reference",
+			name: "Invalid mixed case name",
 			subGroups: []SubGroup{
-				{Name: "a", MinMember: 1},
-				{Name: "b", Parent: ptr.To("A"), MinMember: 1},
+				{Name: "decodeWorkers", MinMember: 4},
 			},
-			wantErr: errors.New("subgroup parent \"A\" must be lowercase"),
+			wantErr: errors.New("invalid subgroup name \"decodeWorkers\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
 		},
 		{
-			name: "Mixed case subgroup name",
+			name: "Invalid uppercase parent reference",
 			subGroups: []SubGroup{
-				{Name: "SubGroup", MinMember: 1},
+				{Name: "workers", MinMember: 4},
+				{Name: "leaders", MinMember: 1, Parent: ptr.To("Workers")},
 			},
-			wantErr: errors.New("subgroup name \"SubGroup\" must be lowercase"),
+			wantErr: errors.New("invalid parent name \"Workers\" for subgroup \"leaders\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
 		},
 		{
-			name: "Valid lowercase with numbers and hyphens",
+			name: "Invalid underscore in name",
 			subGroups: []SubGroup{
-				{Name: "subgroup-1", MinMember: 1},
-				{Name: "subgroup-2", Parent: ptr.To("subgroup-1"), MinMember: 1},
+				{Name: "decode_workers", MinMember: 4},
 			},
-			wantErr: nil,
+			wantErr: errors.New("invalid subgroup name \"decode_workers\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
+		},
+		{
+			name: "Invalid name starts with hyphen",
+			subGroups: []SubGroup{
+				{Name: "-workers", MinMember: 4},
+			},
+			wantErr: errors.New("invalid subgroup name \"-workers\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
+		},
+		{
+			name: "Invalid name ends with hyphen",
+			subGroups: []SubGroup{
+				{Name: "workers-", MinMember: 4},
+			},
+			wantErr: errors.New("invalid subgroup name \"workers-\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
+		},
+		{
+			name: "Invalid parent starts with hyphen",
+			subGroups: []SubGroup{
+				{Name: "workers", MinMember: 4},
+				{Name: "leaders", MinMember: 1, Parent: ptr.To("-workers")},
+			},
+			wantErr: errors.New("invalid parent name \"-workers\" for subgroup \"leaders\": must consist of lowercase alphanumeric characters or '-', must start and end with an alphanumeric character"),
 		},
 	}
 
