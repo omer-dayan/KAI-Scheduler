@@ -7,12 +7,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
+
+// subGroupNameRegex validates DNS-1123 label format: lowercase alphanumeric, may contain hyphens,
+// must start and end with alphanumeric character.
+var subGroupNameRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
 func (p *PodGroup) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -67,6 +72,18 @@ func (_ *PodGroup) ValidateDelete(ctx context.Context, obj runtime.Object) (admi
 func validateSubGroups(subGroups []SubGroup) error {
 	subGroupMap := map[string]*SubGroup{}
 	for _, subGroup := range subGroups {
+		// Validate subgroup name format (lowercase DNS-1123 label)
+		if err := validateSubGroupName(subGroup.Name); err != nil {
+			return fmt.Errorf("invalid subgroup name %q: %w", subGroup.Name, err)
+		}
+
+		// Validate parent name format if specified
+		if subGroup.Parent != nil {
+			if err := validateSubGroupName(*subGroup.Parent); err != nil {
+				return fmt.Errorf("invalid parent name %q for subgroup %q: %w", *subGroup.Parent, subGroup.Name, err)
+			}
+		}
+
 		if subGroupMap[subGroup.Name] != nil {
 			return fmt.Errorf("duplicate subgroup name %s", subGroup.Name)
 		}
@@ -79,6 +96,23 @@ func validateSubGroups(subGroups []SubGroup) error {
 
 	if detectCycle(subGroupMap) {
 		return errors.New("cycle detected in subgroups")
+	}
+	return nil
+}
+
+// validateSubGroupName validates that a subgroup name follows DNS-1123 label format
+// and is lowercase. This ensures consistency with Kubernetes naming conventions and
+// prevents case-sensitivity issues in parent references.
+func validateSubGroupName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+	if len(name) > 63 {
+		return fmt.Errorf("name must be no more than 63 characters")
+	}
+	if !subGroupNameRegex.MatchString(name) {
+		return fmt.Errorf("must consist of lowercase alphanumeric characters or '-', " +
+			"must start and end with an alphanumeric character")
 	}
 	return nil
 }
