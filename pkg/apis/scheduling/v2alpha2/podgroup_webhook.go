@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// subGroupNamePattern validates DNS-1123 label format: lowercase alphanumeric,
+// subGroupNamePattern matches DNS-1123 label format: lowercase alphanumeric,
 // may contain hyphens, must start and end with alphanumeric.
 var subGroupNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
@@ -72,7 +72,7 @@ func (_ *PodGroup) ValidateDelete(ctx context.Context, obj runtime.Object) (admi
 func validateSubGroups(subGroups []SubGroup) error {
 	subGroupMap := map[string]*SubGroup{}
 	for _, subGroup := range subGroups {
-		// Validate lowercase name (DNS-1123 label format)
+		// Validate lowercase name
 		if err := validateSubGroupName(subGroup.Name); err != nil {
 			return fmt.Errorf("invalid subgroup name %q: %w", subGroup.Name, err)
 		}
@@ -102,8 +102,7 @@ func validateSubGroups(subGroups []SubGroup) error {
 }
 
 // validateSubGroupName validates that a subgroup name follows DNS-1123 label format
-// and is lowercase. This ensures compatibility with the scheduler's internal handling
-// which lowercases parent references.
+// and is lowercase.
 func validateSubGroupName(name string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")
