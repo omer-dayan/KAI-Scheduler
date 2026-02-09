@@ -41,6 +41,44 @@ It does **not** enforce lowercase names. This creates a gap where:
 - **Changing the scheduler's internal behavior** - the `formatParentName()` function remains unchanged
 - **Adding DNS-1123 label validation** - subgroup names are internal identifiers, not Kubernetes object names
 
+## Why Webhook Validation?
+
+The design uses webhook validation (extending the existing `validateSubGroups()` function) rather than kubebuilder pattern annotations. Here's why:
+
+### Kubebuilder Pattern Limitations
+
+Kubebuilder's `+kubebuilder:validation:Pattern` annotation could enforce lowercase with a regex like `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`, but has several drawbacks:
+
+1. **Generic error messages**: Pattern validation produces cryptic errors like `Invalid value: "Workers": spec.subGroups[0].name in body should match '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'`. Users must decode the regex to understand the issue.
+
+2. **No pointer field support**: The `Parent` field is `*string` (optional pointer). Kubebuilder pattern validation doesn't work well with pointer types - we'd need to validate the dereferenced value, which requires custom logic anyway.
+
+3. **Inconsistent validation location**: The existing validations (duplicate names, parent existence, cycle detection) are already in the webhook. Adding some validation in kubebuilder and some in webhook creates fragmentation.
+
+### Webhook Validation Benefits
+
+1. **Clear, actionable error messages**: `subgroup name "Workers" must be lowercase` tells users exactly what to fix.
+
+2. **Consistent with existing patterns**: The PodGroup webhook already validates subgroups with `validateSubGroups()`. This change adds one more check in the same function, following the established pattern.
+
+3. **Handles pointer fields correctly**: We can validate the `Parent *string` field by dereferencing it only when non-nil.
+
+4. **Testable**: Unit tests can easily verify validation logic with clear expected error messages.
+
+5. **Follows project conventions**: Other webhooks in KAI-Scheduler (and Kubernetes ecosystem) use custom validation for semantic rules that go beyond basic type/format checking.
+
+### When to Use Kubebuilder vs Webhook
+
+| Use Kubebuilder Annotations | Use Webhook Validation |
+|----------------------------|------------------------|
+| Min/Max values | Cross-field validation |
+| Required fields | Parent-child relationships |
+| Enum constraints | Custom error messages |
+| Simple string length | Pointer field validation |
+| DNS name format (Kubernetes objects) | Internal identifiers |
+
+For this feature, the need for clear error messages and consistent validation location makes webhook validation the right choice.
+
 ## Alternatives Considered
 
 ### Alternative 1: Remove the Lowercase Requirement (Not Recommended)
@@ -76,7 +114,7 @@ Name string `json:"name"`
 - Need separate validation for the `Parent` field (which is a pointer)
 - Pattern validation errors are generic and less helpful
 
-**Decision:** Rejected - custom webhook validation provides better error messages.
+**Decision:** Rejected - custom webhook validation provides better error messages. See "Why Webhook Validation?" section above for detailed rationale.
 
 ### Alternative 3: Webhook Validation with `validateSubGroupName()` (Recommended)
 
