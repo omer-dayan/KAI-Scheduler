@@ -15,12 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// subGroupNameRegex validates subgroup names follow DNS-1123 label format (lowercase).
+// subGroupNameRegex validates DNS-1123 label format: lowercase alphanumeric with hyphens,
+// must start and end with alphanumeric, max 63 characters.
 // This ensures consistency with the scheduler's formatParentName() which lowercases parent names.
-// Pattern: lowercase alphanumeric, may contain hyphens (not at start/end), max 63 chars.
 var subGroupNameRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
-
-const maxSubGroupNameLength = 63
 
 func (p *PodGroup) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -99,17 +97,17 @@ func validateSubGroups(subGroups []SubGroup) error {
 	return nil
 }
 
-// validateSubGroupName validates that a subgroup name follows DNS-1123 label format.
-// Names must be lowercase alphanumeric, may contain hyphens (not at start/end), max 63 chars.
+// validateSubGroupName validates that the subgroup name follows DNS-1123 label format.
+// This ensures consistency with the scheduler which lowercases parent names in formatParentName().
 func validateSubGroupName(name string) error {
-	if len(name) == 0 {
+	if name == "" {
 		return errors.New("subgroup name cannot be empty")
 	}
-	if len(name) > maxSubGroupNameLength {
-		return fmt.Errorf("subgroup name %q exceeds maximum length of %d characters", name, maxSubGroupNameLength)
+	if len(name) > 63 {
+		return fmt.Errorf("subgroup name %q exceeds maximum length of 63 characters", name)
 	}
 	if !subGroupNameRegex.MatchString(name) {
-		return fmt.Errorf("subgroup name %q is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character", name)
+		return fmt.Errorf("subgroup name %q must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character", name)
 	}
 	return nil
 }

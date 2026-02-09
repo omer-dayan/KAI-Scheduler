@@ -10,139 +10,6 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func TestValidateSubGroupName(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantErr bool
-		errMsg  string
-	}{
-		// Valid names
-		{
-			name:    "simple lowercase name",
-			input:   "mysubgroup",
-			wantErr: false,
-		},
-		{
-			name:    "lowercase with numbers",
-			input:   "subgroup123",
-			wantErr: false,
-		},
-		{
-			name:    "lowercase with hyphens",
-			input:   "my-sub-group",
-			wantErr: false,
-		},
-		{
-			name:    "single character",
-			input:   "a",
-			wantErr: false,
-		},
-		{
-			name:    "single digit",
-			input:   "1",
-			wantErr: false,
-		},
-		{
-			name:    "starts with number",
-			input:   "1abc",
-			wantErr: false,
-		},
-		{
-			name:    "ends with number",
-			input:   "abc1",
-			wantErr: false,
-		},
-		// Invalid names - uppercase
-		{
-			name:    "uppercase letters",
-			input:   "MySubGroup",
-			wantErr: true,
-			errMsg:  `subgroup name "MySubGroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		{
-			name:    "all uppercase",
-			input:   "SUBGROUP",
-			wantErr: true,
-			errMsg:  `subgroup name "SUBGROUP" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		// Invalid names - special characters
-		{
-			name:    "underscore",
-			input:   "my_subgroup",
-			wantErr: true,
-			errMsg:  `subgroup name "my_subgroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		{
-			name:    "dot",
-			input:   "my.subgroup",
-			wantErr: true,
-			errMsg:  `subgroup name "my.subgroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		{
-			name:    "space",
-			input:   "my subgroup",
-			wantErr: true,
-			errMsg:  `subgroup name "my subgroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		// Invalid names - hyphen placement
-		{
-			name:    "starts with hyphen",
-			input:   "-subgroup",
-			wantErr: true,
-			errMsg:  `subgroup name "-subgroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		{
-			name:    "ends with hyphen",
-			input:   "subgroup-",
-			wantErr: true,
-			errMsg:  `subgroup name "subgroup-" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		{
-			name:    "only hyphen",
-			input:   "-",
-			wantErr: true,
-			errMsg:  `subgroup name "-" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`,
-		},
-		// Invalid names - empty and length
-		{
-			name:    "empty string",
-			input:   "",
-			wantErr: true,
-			errMsg:  "subgroup name cannot be empty",
-		},
-		{
-			name:    "exceeds max length",
-			input:   "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01234", // 65 chars
-			wantErr: true,
-			errMsg:  `subgroup name "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01234" exceeds maximum length of 63 characters`,
-		},
-		{
-			name:    "exactly max length",
-			input:   "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0", // 63 chars
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateSubGroupName(tt.input)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error but got none")
-				}
-				if tt.errMsg != "" && err.Error() != tt.errMsg {
-					t.Fatalf("expected error %q, got %q", tt.errMsg, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("expected no error but got: %v", err)
-				}
-			}
-		})
-	}
-}
-
 func TestValidateSubGroups(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -169,10 +36,30 @@ func TestValidateSubGroups(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "Valid lowercase with hyphens and numbers",
+			name: "Valid lowercase name with hyphens",
 			subGroups: []SubGroup{
-				{Name: "group-1", MinMember: 1},
-				{Name: "sub-group-2", Parent: ptr.To("group-1"), MinMember: 1},
+				{Name: "my-subgroup-1", MinMember: 1},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Valid lowercase name with numbers",
+			subGroups: []SubGroup{
+				{Name: "sub1group2", MinMember: 1},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Valid single character name",
+			subGroups: []SubGroup{
+				{Name: "a", MinMember: 1},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Valid single digit name",
+			subGroups: []SubGroup{
+				{Name: "1", MinMember: 1},
 			},
 			wantErr: nil,
 		},
@@ -198,7 +85,7 @@ func TestValidateSubGroups(t *testing.T) {
 			wantErr: errors.New("duplicate subgroup name a"),
 		},
 		{
-			name: "Cycle in graph (A -> B -> C -> A) - duplicate subgroup name",
+			name: "Cycle in graph (a -> b -> c -> a) - duplicate subgroup name",
 			subGroups: []SubGroup{
 				{Name: "a", MinMember: 1},
 				{Name: "b", Parent: ptr.To("a"), MinMember: 1},
@@ -215,7 +102,7 @@ func TestValidateSubGroups(t *testing.T) {
 			wantErr: errors.New("cycle detected in subgroups"),
 		},
 		{
-			name: "Cycle in graph (A -> B -> C -> A)",
+			name: "Cycle in graph (a -> b -> c -> a)",
 			subGroups: []SubGroup{
 				{Name: "a", Parent: ptr.To("c"), MinMember: 1},
 				{Name: "b", Parent: ptr.To("a"), MinMember: 1},
@@ -233,41 +120,71 @@ func TestValidateSubGroups(t *testing.T) {
 			},
 			wantErr: errors.New("cycle detected in subgroups"),
 		},
-		// New tests for subgroup name validation
+		// Subgroup name validation tests
 		{
 			name: "Invalid uppercase subgroup name",
 			subGroups: []SubGroup{
-				{Name: "MySubGroup", MinMember: 1},
+				{Name: "MySubgroup", MinMember: 1},
 			},
-			wantErr: errors.New(`subgroup name "MySubGroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`),
+			wantErr: errors.New(`subgroup name "MySubgroup" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
 		},
 		{
-			name: "Invalid uppercase parent reference",
+			name: "Invalid mixed case subgroup name",
 			subGroups: []SubGroup{
-				{Name: "child", Parent: ptr.To("ParentGroup"), MinMember: 1},
+				{Name: "mySubGroup", MinMember: 1},
 			},
-			wantErr: errors.New(`invalid parent reference: subgroup name "ParentGroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`),
+			wantErr: errors.New(`subgroup name "mySubGroup" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
 		},
 		{
 			name: "Invalid subgroup name with underscore",
 			subGroups: []SubGroup{
 				{Name: "my_subgroup", MinMember: 1},
 			},
-			wantErr: errors.New(`subgroup name "my_subgroup" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`),
+			wantErr: errors.New(`subgroup name "my_subgroup" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
 		},
 		{
-			name: "Invalid subgroup name starts with hyphen",
+			name: "Invalid subgroup name starting with hyphen",
 			subGroups: []SubGroup{
-				{Name: "-invalid", MinMember: 1},
+				{Name: "-subgroup", MinMember: 1},
 			},
-			wantErr: errors.New(`subgroup name "-invalid" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`),
+			wantErr: errors.New(`subgroup name "-subgroup" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
 		},
 		{
-			name: "Invalid subgroup name ends with hyphen",
+			name: "Invalid subgroup name ending with hyphen",
 			subGroups: []SubGroup{
-				{Name: "invalid-", MinMember: 1},
+				{Name: "subgroup-", MinMember: 1},
 			},
-			wantErr: errors.New(`subgroup name "invalid-" is invalid: must consist of lowercase alphanumeric characters or '-', and must start and end with an alphanumeric character`),
+			wantErr: errors.New(`subgroup name "subgroup-" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
+		},
+		{
+			name: "Invalid subgroup name with special characters",
+			subGroups: []SubGroup{
+				{Name: "sub@group", MinMember: 1},
+			},
+			wantErr: errors.New(`subgroup name "sub@group" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
+		},
+		{
+			name: "Invalid empty subgroup name",
+			subGroups: []SubGroup{
+				{Name: "", MinMember: 1},
+			},
+			wantErr: errors.New("subgroup name cannot be empty"),
+		},
+		{
+			name: "Invalid uppercase parent reference",
+			subGroups: []SubGroup{
+				{Name: "parent", MinMember: 1},
+				{Name: "child", Parent: ptr.To("Parent"), MinMember: 1},
+			},
+			wantErr: errors.New(`invalid parent reference: subgroup name "Parent" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
+		},
+		{
+			name: "Invalid parent reference with underscore",
+			subGroups: []SubGroup{
+				{Name: "parent-group", MinMember: 1},
+				{Name: "child", Parent: ptr.To("parent_group"), MinMember: 1},
+			},
+			wantErr: errors.New(`invalid parent reference: subgroup name "parent_group" must be a lowercase DNS-1123 label: lowercase alphanumeric characters or '-', starting and ending with an alphanumeric character`),
 		},
 	}
 
@@ -279,6 +196,39 @@ func TestValidateSubGroups(t *testing.T) {
 			}
 			if err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
 				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateSubGroupName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"valid lowercase", "mysubgroup", false},
+		{"valid with hyphens", "my-sub-group", false},
+		{"valid with numbers", "sub1group2", false},
+		{"valid single char", "a", false},
+		{"valid single digit", "1", false},
+		{"valid alphanumeric mix", "a1b2c3", false},
+		{"invalid uppercase", "MySubGroup", true},
+		{"invalid mixed case", "mySubgroup", true},
+		{"invalid underscore", "my_subgroup", true},
+		{"invalid starting hyphen", "-subgroup", true},
+		{"invalid ending hyphen", "subgroup-", true},
+		{"invalid special char", "sub@group", true},
+		{"invalid space", "sub group", true},
+		{"invalid empty", "", true},
+		{"invalid dot", "sub.group", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSubGroupName(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateSubGroupName(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 			}
 		})
 	}
