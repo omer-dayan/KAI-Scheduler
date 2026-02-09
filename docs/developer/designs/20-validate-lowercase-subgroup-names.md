@@ -145,7 +145,10 @@ func validateSubGroups(subGroups []SubGroup) error {
 The validation enforces:
 1. **Subgroup names must be lowercase** - `"workers"` is valid, `"Workers"` is not
 2. **Parent references must be lowercase** - `parent: "master"` is valid, `parent: "Master"` is not
-3. **Existing validations remain unchanged** - duplicate detection, parent existence, cycle detection
+3. **Existing validations remain unchanged** - the following validations already exist in `validateSubGroups()` and will continue to function as before:
+   - **Duplicate name detection**: Rejects PodGroups where two subgroups have the same name
+   - **Parent existence validation**: Ensures that if a subgroup specifies a `parent`, that parent subgroup exists in the list
+   - **Cycle detection**: Prevents circular parent references (e.g., A→B→C→A)
 
 ### Error Messages
 
