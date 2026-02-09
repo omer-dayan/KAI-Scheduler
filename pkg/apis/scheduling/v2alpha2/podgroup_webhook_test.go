@@ -93,24 +93,24 @@ func TestValidateSubGroups(t *testing.T) {
 			wantErr: errors.New("cycle detected in subgroups"),
 		},
 		{
-			name: "Uppercase subgroup name rejected",
+			name: "Uppercase subgroup name",
 			subGroups: []SubGroup{
 				{Name: "A", MinMember: 1},
 			},
 			wantErr: errors.New("subgroup name \"A\" must be lowercase"),
 		},
 		{
-			name: "Mixed case subgroup name rejected",
+			name: "Mixed case subgroup name",
 			subGroups: []SubGroup{
-				{Name: "Worker", MinMember: 1},
+				{Name: "MySubGroup", MinMember: 1},
 			},
-			wantErr: errors.New("subgroup name \"Worker\" must be lowercase"),
+			wantErr: errors.New("subgroup name \"MySubGroup\" must be lowercase"),
 		},
 		{
-			name: "Valid lowercase with hyphens and numbers",
+			name: "Lowercase with numbers and hyphens is valid",
 			subGroups: []SubGroup{
-				{Name: "worker-1", MinMember: 1},
-				{Name: "gpu-node-2", Parent: ptr.To("worker-1"), MinMember: 1},
+				{Name: "subgroup-1", MinMember: 1},
+				{Name: "test-123", Parent: ptr.To("subgroup-1"), MinMember: 1},
 			},
 			wantErr: nil,
 		},
