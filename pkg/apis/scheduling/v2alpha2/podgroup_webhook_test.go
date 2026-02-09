@@ -36,6 +36,35 @@ func TestValidateSubGroups(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name: "Valid lowercase with numbers and hyphens",
+			subGroups: []SubGroup{
+				{Name: "worker-1", MinMember: 1},
+				{Name: "worker-2", Parent: ptr.To("worker-1"), MinMember: 1},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Uppercase subgroup name",
+			subGroups: []SubGroup{
+				{Name: "Worker", MinMember: 1},
+			},
+			wantErr: errors.New("subgroup name \"Worker\" must be lowercase"),
+		},
+		{
+			name: "Mixed-case subgroup name",
+			subGroups: []SubGroup{
+				{Name: "myWorker", MinMember: 1},
+			},
+			wantErr: errors.New("subgroup name \"myWorker\" must be lowercase"),
+		},
+		{
+			name: "All uppercase subgroup name",
+			subGroups: []SubGroup{
+				{Name: "WORKER", MinMember: 1},
+			},
+			wantErr: errors.New("subgroup name \"WORKER\" must be lowercase"),
+		},
+		{
 			name: "Missing parent",
 			subGroups: []SubGroup{
 				{Name: "a", MinMember: 1},
@@ -91,28 +120,6 @@ func TestValidateSubGroups(t *testing.T) {
 				{Name: "d", Parent: ptr.To("c"), MinMember: 1}, // cycle c <-> d
 			},
 			wantErr: errors.New("cycle detected in subgroups"),
-		},
-		{
-			name: "Uppercase subgroup name",
-			subGroups: []SubGroup{
-				{Name: "A", MinMember: 1},
-			},
-			wantErr: errors.New("subgroup name \"A\" must be lowercase"),
-		},
-		{
-			name: "Mixed case subgroup name",
-			subGroups: []SubGroup{
-				{Name: "MySubGroup", MinMember: 1},
-			},
-			wantErr: errors.New("subgroup name \"MySubGroup\" must be lowercase"),
-		},
-		{
-			name: "Lowercase with numbers and hyphens is valid",
-			subGroups: []SubGroup{
-				{Name: "subgroup-1", MinMember: 1},
-				{Name: "test-123", Parent: ptr.To("subgroup-1"), MinMember: 1},
-			},
-			wantErr: nil,
 		},
 	}
 
